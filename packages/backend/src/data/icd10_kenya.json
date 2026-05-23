@@ -335,5 +335,14 @@
   {"code":"Z80","description":"Family history of malignant neoplasm"},
   {"code":"Z82","description":"Family history of certain disabilities and chronic diseases"},
   {"code":"Z87","description":"Personal history of other diseases and conditions"},
-  {"code":"Z96","description":"Presence of other functional implants"}
+  {"code":"Z96","description":"Presence of other functional implants"},
+  {"code":"Z99","description":"Dependence on enabling machines and devices"},
+  {"code":"U07.1","description":"COVID-19, virus identified"},
+  {"code":"U07.2","description":"COVID-19, virus not identified"},
+  {"code":"A90","description":"Dengue fever"},
+  {"code":"A91","description":"Dengue haemorrhagic fever"},
+  {"code":"B19","description":"Unspecified viral hepatitis"},
+  {"code":"J12.9","description":"Viral pneumonia, unspecified"},
+  {"code":"O30","description":"Multiple gestation"},
+  {"code":"P07.3","description":"Preterm newborn, gestational age 28-36 weeks"}
 ]
