@@ -46,11 +46,20 @@ function Sidebar({ expanded, onToggle }: { expanded: boolean; onToggle: () => vo
     { to: "/dashboard/patients", icon: "👥", label: "Patients" },
     { to: "/dashboard/encounters", icon: "📋", label: "Encounters" },
     { to: "/dashboard/schedule", icon: "📅", label: "Schedule" },
+    { to: "/dashboard/triage", icon: "🩺", label: "Triage" },
     { to: "/dashboard/messaging", icon: "💬", label: "Messages" },
     { to: "/dashboard/billing", icon: "💳", label: "Billing" },
     { to: "/dashboard/payments", icon: "💰", label: "Payments" },
     { to: "/dashboard/reports", icon: "📈", label: "Reports" },
-    { to: "/dashboard/triage", icon: "🩺", label: "Triage" },
+    // ── Clinical Modules ──────────────────────────────────────────────────────
+    { to: "/dashboard/pharmacy", icon: "💊", label: "Pharmacy" },
+    { to: "/dashboard/lab", icon: "🔬", label: "Laboratory" },
+    // ── Inpatient ─────────────────────────────────────────────────────────────
+    { to: "/dashboard/wards", icon: "🛏️", label: "Wards" },
+    { to: "/dashboard/admissions", icon: "🏥", label: "Admissions" },
+    // ── Finance & Insurance ───────────────────────────────────────────────────
+    { to: "/dashboard/insurance", icon: "🛡️", label: "Insurance" },
+    // ── Settings ──────────────────────────────────────────────────────────────
     { to: "/dashboard/organisation-settings", icon: "⚙️", label: "Settings", end: true },
   ];
 

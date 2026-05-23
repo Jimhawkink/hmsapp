@@ -21,6 +21,15 @@ import InvestigationPage from "./pages/InvestigationPage";
 import TriageEncounterPage from "./pages/TriageEncounterPage";
 import PatientEncounterPage from "./pages/PatientEncounterPage";
 
+// ── New HMS Module Pages ───────────────────────────────────────────────────────
+import PharmacyPage from "./pages/PharmacyPage";
+import WardManagementPage from "./pages/WardManagementPage";
+import AdmissionsPage from "./pages/AdmissionsPage";
+import AdmissionDetailPage from "./pages/AdmissionDetailPage";
+import LabWorklist from "./pages/LabWorklist";
+import InsurancePage from "./pages/InsurancePage";
+import AdminPanelPage from "./pages/AdminPanelPage";
+
 // Admin Panel Pages
 import OrganisationSettingsForm from "./pages/OrganisationSettingsForm";
 import RevenueTrackingPage from "./pages/RevenueTrackingPage";
@@ -78,6 +87,13 @@ const App: React.FC = () => {
             <Route path="patient-encounter/:patientId" element={<PatientEncounterPage />} />
             <Route path="encounters/complaints/:encounterId" element={<ComplaintsPage />} />
             <Route path="encounters/investigations/:encounterId" element={<InvestigationPage />} />
+            {/* ── New HMS Module Routes ─────────────────────────────────────── */}
+            <Route path="pharmacy" element={<PharmacyPage />} />
+            <Route path="wards" element={<WardManagementPage />} />
+            <Route path="admissions" element={<AdmissionsPage />} />
+            <Route path="admissions/:id" element={<AdmissionDetailPage />} />
+            <Route path="lab" element={<LabWorklist />} />
+            <Route path="insurance" element={<InsurancePage />} />
           </Route>
 
           {/* ADMIN PANEL - Settings & Management pages */}
@@ -90,6 +106,7 @@ const App: React.FC = () => {
             <Route path="staff-management" element={<StaffManagementPage />} />
             <Route path="stock-management" element={<StockManagementPage />} />
             <Route path="data-completion" element={<DataCompletionPage />} />
+            <Route path="admin-panel" element={<AdminPanelPage />} />
           </Route>
 
           {/* Also support /dashboard/organisation-settings by rendering with AdminPanelLayout */}

@@ -147,6 +147,12 @@ export default function AdminPanelLayout() {
               <span className="ml-3">Branch management</span>
             </NavLink>
 
+            {/* ── New Admin Modules ─────────────────────────────────────────── */}
+            <NavLink to="/admin/admin-panel" className={linkClass}>
+              <FiSettings className="h-5 w-5 flex-shrink-0" />
+              <span className="ml-3">Admin Panel</span>
+            </NavLink>
+
             <div className="mt-4">
               <button
                 onClick={() => setExpensesOpen(!expensesOpen)}
@@ -181,4 +187,4 @@ export default function AdminPanelLayout() {
       </div>
     </div>
   );
-}
+}

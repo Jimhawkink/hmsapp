@@ -581,6 +581,22 @@ import triageRoutes from "./routes/triage";
 import investigationRoutes from "./routes/investigationRoutes";
 import rolePermissionRoutes from "./routes/rolePermissionRoutes";
 
+// ── New HMS Module Routes ──────────────────────────────────────────────────────
+import icd10Routes from "./routes/icd10Routes";
+import encounterClinicalRoutes from "./routes/encounterClinicalRoutes";
+import pharmacyRoutes from "./routes/pharmacyRoutes";
+import wardRoutes from "./routes/wardRoutes";
+import admissionRoutes from "./routes/admissionRoutes";
+import labRoutes from "./routes/labRoutes";
+import insuranceRoutes from "./routes/insuranceRoutes";
+import claimRoutes from "./routes/claimRoutes";
+import reportRoutes from "./routes/reportRoutes";
+import messagingRoutes from "./routes/messagingRoutes";
+import expenseRoutes from "./routes/expenseRoutes";
+import budgetRoutes from "./routes/budgetRoutes";
+import adminRoutes from "./routes/adminRoutes";
+import dashboardRoutes from "./routes/dashboardRoutes";
+
 // ... (existing code for setupRoutes)
 
 const setupRoutes = async (): Promise<void> => {
@@ -617,6 +633,22 @@ const setupRoutes = async (): Promise<void> => {
   registerRoute("/api/triage", "triageRoutes", triageRoutes);
   registerRoute("/api/investigation-requests", "investigationRoutes", investigationRoutes);
   registerRoute("/api/organization", "rolePermissionRoutes", rolePermissionRoutes);
+
+  // ── New HMS Module Routes ────────────────────────────────────────────────────
+  registerRoute("/api/icd10", "icd10Routes", icd10Routes);
+  registerRoute("/api", "encounterClinicalRoutes", encounterClinicalRoutes);
+  registerRoute("/api/pharmacy", "pharmacyRoutes", pharmacyRoutes);
+  registerRoute("/api/wards", "wardRoutes", wardRoutes);
+  registerRoute("/api/admissions", "admissionRoutes", admissionRoutes);
+  registerRoute("/api/lab", "labRoutes", labRoutes);
+  registerRoute("/api/insurance", "insuranceRoutes", insuranceRoutes);
+  registerRoute("/api/claims", "claimRoutes", claimRoutes);
+  registerRoute("/api/reports", "reportRoutes", reportRoutes);
+  registerRoute("/api/messaging", "messagingRoutes", messagingRoutes);
+  registerRoute("/api/expenses", "expenseRoutes", expenseRoutes);
+  registerRoute("/api/budgets", "budgetRoutes", budgetRoutes);
+  registerRoute("/api/admin", "adminRoutes", adminRoutes);
+  registerRoute("/api/dashboard", "dashboardRoutes", dashboardRoutes);
 
   app.get("/api/health", (_req, res) =>
     res.json({
