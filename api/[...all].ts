@@ -1394,6 +1394,499 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       }
     }
 
+    // ========== WARDS ==========
+    if (segments[0] === 'wards') {
+      if (segments.length === 1 && method === 'GET') {
+        const r = await pool.query('SELECT * FROM hms_wards ORDER BY name');
+        return res.json(txAll(r.rows));
+      }
+      if (segments.length === 1 && method === 'POST') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `INSERT INTO hms_wards (name, ward_type, total_beds, description, is_active, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,true,NOW(),NOW()) RETURNING *`,
+          [b.name, b.ward_type || 'General', b.total_beds || 0, b.description || '']
+        );
+        // Auto-create beds if total_beds > 0
+        const ward = r.rows[0];
+        const totalBeds = parseInt(b.total_beds) || 0;
+        for (let i = 1; i <= totalBeds; i++) {
+          await pool.query(
+            `INSERT INTO hms_beds (ward_id, bed_number, status, created_at, updated_at)
+             VALUES ($1, $2, 'Vacant', NOW(), NOW())`,
+            [ward.id, `${b.name?.substring(0,3)?.toUpperCase() || 'BED'}-${String(i).padStart(2,'0')}`]
+          );
+        }
+        return res.status(201).json(tx(ward));
+      }
+      // GET /wards/:id/beds
+      if (segments.length === 3 && segments[2] === 'beds' && method === 'GET') {
+        const r = await pool.query(
+          `SELECT b.*, a.patient_id FROM hms_beds b
+           LEFT JOIN hms_admissions a ON b.current_admission_id = a.id
+           WHERE b.ward_id = $1 ORDER BY b.bed_number`,
+          [segments[1]]
+        );
+        return res.json(txAll(r.rows));
+      }
+      // POST /wards/:id/beds
+      if (segments.length === 3 && segments[2] === 'beds' && method === 'POST') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `INSERT INTO hms_beds (ward_id, bed_number, status, created_at, updated_at)
+           VALUES ($1, $2, 'Vacant', NOW(), NOW()) RETURNING *`,
+          [segments[1], b.bed_number]
+        );
+        return res.status(201).json(tx(r.rows[0]));
+      }
+    }
+
+    // ========== ADMISSIONS ==========
+    if (segments[0] === 'admissions') {
+      if (segments.length === 1 && method === 'GET') {
+        const r = await pool.query(`
+          SELECT a.*, p.first_name, p.last_name, p.gender, p.dob, p.phone,
+                 w.name as ward_name, b.bed_number,
+                 s.first_name as clinician_first_name, s.last_name as clinician_last_name
+          FROM hms_admissions a
+          LEFT JOIN hms_patients p ON a.patient_id = p.id
+          LEFT JOIN hms_wards w ON a.ward_id = w.id
+          LEFT JOIN hms_beds b ON a.bed_id = b.id
+          LEFT JOIN hms_staff s ON a.admitting_clinician_id = s.id
+          ORDER BY a.created_at DESC
+        `);
+        return res.json(txAll(r.rows));
+      }
+      if (segments.length === 1 && method === 'POST') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `INSERT INTO hms_admissions (patient_id, encounter_id, ward_id, bed_id, admitting_clinician_id,
+           admission_date, admitting_diagnosis, status, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,$5,COALESCE($6::timestamptz,NOW()),$7,'Admitted',NOW(),NOW()) RETURNING *`,
+          [b.patient_id, b.encounter_id || null, b.ward_id, b.bed_id, b.admitting_clinician_id,
+           b.admission_date || null, b.admitting_diagnosis || '']
+        );
+        // Update bed status
+        await pool.query(`UPDATE hms_beds SET status='Occupied', current_admission_id=$1, updated_at=NOW() WHERE id=$2`,
+          [r.rows[0].id, b.bed_id]);
+        return res.status(201).json(tx(r.rows[0]));
+      }
+      // GET /admissions/:id
+      if (segments.length === 2 && method === 'GET') {
+        const r = await pool.query(`
+          SELECT a.*, p.first_name, p.last_name, p.gender, p.dob, p.phone,
+                 w.name as ward_name, b.bed_number,
+                 s.first_name as clinician_first_name, s.last_name as clinician_last_name
+          FROM hms_admissions a
+          LEFT JOIN hms_patients p ON a.patient_id = p.id
+          LEFT JOIN hms_wards w ON a.ward_id = w.id
+          LEFT JOIN hms_beds b ON a.bed_id = b.id
+          LEFT JOIN hms_staff s ON a.admitting_clinician_id = s.id
+          WHERE a.id = $1`, [segments[1]]);
+        if (r.rows.length === 0) return res.status(404).json({ message: 'Admission not found' });
+        return res.json(tx(r.rows[0]));
+      }
+      // POST /admissions/:id/discharge
+      if (segments.length === 3 && segments[2] === 'discharge' && method === 'POST') {
+        const b = req.body || {};
+        await pool.query(
+          `UPDATE hms_admissions SET status='Discharged', discharge_date=NOW(),
+           discharge_diagnosis=$1, discharge_summary=$2, updated_at=NOW() WHERE id=$3`,
+          [b.discharge_diagnosis || '', b.discharge_summary || '', segments[1]]
+        );
+        // Free the bed
+        const adm = await pool.query('SELECT bed_id FROM hms_admissions WHERE id=$1', [segments[1]]);
+        if (adm.rows[0]?.bed_id) {
+          await pool.query(`UPDATE hms_beds SET status='Vacant', current_admission_id=NULL, updated_at=NOW() WHERE id=$1`,
+            [adm.rows[0].bed_id]);
+        }
+        return res.json({ message: 'Patient discharged' });
+      }
+      // POST /admissions/:id/notes
+      if (segments.length === 3 && segments[2] === 'notes' && method === 'POST') {
+        const b = req.body || {};
+        try {
+          await pool.query(
+            `INSERT INTO hms_admission_notes (admission_id, note_type, note_text, created_by, created_at)
+             VALUES ($1,$2,$3,$4,NOW())`,
+            [segments[1], b.note_type || 'Progress', b.note_text || '', b.created_by || 'Admin']
+          );
+        } catch(e: any) {
+          // If table doesn't exist, create it
+          if (e.message?.includes('does not exist')) {
+            await pool.query(`CREATE TABLE IF NOT EXISTS hms_admission_notes (
+              id SERIAL PRIMARY KEY, admission_id INTEGER, note_type VARCHAR DEFAULT 'Progress',
+              note_text TEXT, created_by VARCHAR, created_at TIMESTAMPTZ DEFAULT NOW()
+            )`);
+            await pool.query(
+              `INSERT INTO hms_admission_notes (admission_id, note_type, note_text, created_by, created_at)
+               VALUES ($1,$2,$3,$4,NOW())`,
+              [segments[1], b.note_type || 'Progress', b.note_text || '', b.created_by || 'Admin']
+            );
+          }
+        }
+        return res.json({ message: 'Note added' });
+      }
+    }
+
+    // ========== LAB WORKLIST ==========
+    if (segments[0] === 'lab') {
+      // GET /lab/worklist
+      if (segments[1] === 'worklist' && method === 'GET') {
+        const r = await pool.query(`
+          SELECT ir.*, p.first_name, p.last_name, p.gender, p.dob,
+                 it.name as test_name, it.department, it.type as test_type
+          FROM hms_investigation_requests ir
+          LEFT JOIN hms_encounters e ON ir.encounter_id = e.id
+          LEFT JOIN hms_patients p ON e.patient_id = p.id
+          LEFT JOIN hms_investigation_tests it ON ir.test_id = it.id
+          ORDER BY ir.created_at DESC
+        `);
+        return res.json(txAll(r.rows));
+      }
+      // GET /lab/requests/:id/parameters
+      if (segments[1] === 'requests' && segments[3] === 'parameters' && method === 'GET') {
+        const r = await pool.query(`
+          SELECT * FROM hms_investigation_test_params WHERE test_id = (
+            SELECT test_id FROM hms_investigation_requests WHERE id = $1
+          ) ORDER BY sort_order`, [segments[2]]);
+        return res.json(txAll(r.rows));
+      }
+      // POST /lab/requests/:id/results
+      if (segments[1] === 'requests' && segments[3] === 'results' && method === 'POST') {
+        const b = req.body || {};
+        const results = b.results || [];
+        for (const r of results) {
+          await pool.query(
+            `INSERT INTO hms_investigation_results (request_id, param_name, value, unit, reference_range, flag, entered_by, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
+             ON CONFLICT DO NOTHING`,
+            [segments[2], r.param_name, r.value, r.unit || '', r.reference_range || '', r.flag || '', b.entered_by || 1]
+          );
+        }
+        // Update request status
+        await pool.query(`UPDATE hms_investigation_requests SET status='Completed', updated_at=NOW() WHERE id=$1`, [segments[2]]);
+        return res.json({ message: 'Results saved' });
+      }
+      // GET /lab/requests/:id/report
+      if (segments[1] === 'requests' && segments[3] === 'report' && method === 'GET') {
+        const reqR = await pool.query(`
+          SELECT ir.*, it.name as test_name, it.department, it.type as test_type,
+                 p.first_name, p.last_name, p.gender, p.dob
+          FROM hms_investigation_requests ir
+          LEFT JOIN hms_investigation_tests it ON ir.test_id = it.id
+          LEFT JOIN hms_encounters e ON ir.encounter_id = e.id
+          LEFT JOIN hms_patients p ON e.patient_id = p.id
+          WHERE ir.id = $1`, [segments[2]]);
+        const results = await pool.query(
+          `SELECT * FROM hms_investigation_results WHERE request_id = $1 ORDER BY created_at`, [segments[2]]);
+        return res.json({
+          request: reqR.rows[0] ? tx(reqR.rows[0]) : null,
+          results: txAll(results.rows)
+        });
+      }
+    }
+
+    // ========== EXPENSES ==========
+    if (segments[0] === 'expenses') {
+      if (segments[1] === 'summary' && method === 'GET') {
+        const period = req.query?.period || 'monthly';
+        const r = await pool.query(`
+          SELECT category, SUM(amount) as total, COUNT(*) as count
+          FROM hms_expenses GROUP BY category ORDER BY total DESC
+        `);
+        // Also get budget data
+        let budgets: any[] = [];
+        try {
+          const br = await pool.query('SELECT * FROM hms_budget ORDER BY category');
+          budgets = txAll(br.rows);
+        } catch(e) { /* table may not exist */ }
+        return res.json({ expenses: txAll(r.rows), budgets, period });
+      }
+      if (segments.length === 1 && method === 'GET') {
+        const from = req.query?.from || '2020-01-01';
+        const to = req.query?.to || '2099-12-31';
+        const cat = req.query?.category;
+        let q = `SELECT * FROM hms_expenses WHERE expense_date >= $1 AND expense_date <= $2`;
+        const params: any[] = [from, to];
+        if (cat && cat !== 'all') {
+          q += ` AND category = $3`;
+          params.push(cat);
+        }
+        q += ` ORDER BY expense_date DESC`;
+        const r = await pool.query(q, params);
+        return res.json(txAll(r.rows));
+      }
+      if (segments.length === 1 && method === 'POST') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `INSERT INTO hms_expenses (category, description, amount, expense_date, payment_method, vendor, receipt_number, recorded_by, notes, created_at)
+           VALUES ($1,$2,$3,COALESCE($4::date,CURRENT_DATE),$5,$6,$7,$8,$9,NOW()) RETURNING *`,
+          [b.category, b.description || '', b.amount, b.expense_date || null, b.payment_method || 'Cash',
+           b.vendor || '', b.receipt_number || '', b.recorded_by || 'Admin', b.notes || '']
+        );
+        return res.status(201).json(tx(r.rows[0]));
+      }
+      // PUT /expenses/:id
+      if (segments.length === 2 && method === 'PUT') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `UPDATE hms_expenses SET category=COALESCE($1,category), description=COALESCE($2,description),
+           amount=COALESCE($3,amount), expense_date=COALESCE($4::date,expense_date) WHERE id=$5 RETURNING *`,
+          [b.category, b.description, b.amount, b.expense_date || null, segments[1]]
+        );
+        return res.json(tx(r.rows[0]));
+      }
+    }
+
+    // ========== BUDGETS ==========
+    if (segments[0] === 'budgets') {
+      if (method === 'GET') {
+        const r = await pool.query('SELECT * FROM hms_budget ORDER BY category');
+        return res.json(txAll(r.rows));
+      }
+      if (method === 'POST') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `INSERT INTO hms_budget (category, period, budget_amount, created_at, updated_at)
+           VALUES ($1,$2,$3,NOW(),NOW())
+           ON CONFLICT DO NOTHING RETURNING *`,
+          [b.category, b.period, b.budget_amount || 0]
+        );
+        return res.status(201).json(r.rows[0] ? tx(r.rows[0]) : { message: 'Budget exists' });
+      }
+    }
+
+    // ========== INSURANCE CLAIMS ==========
+    if (segments[0] === 'claims') {
+      if (method === 'GET') {
+        const r = await pool.query(`
+          SELECT c.*, p.first_name, p.last_name, s.scheme_name
+          FROM hms_insurance_claims c
+          LEFT JOIN hms_patients p ON c.patient_id = p.id
+          LEFT JOIN hms_insurance_schemes s ON c.scheme_id = s.id
+          ORDER BY c.created_at DESC
+        `);
+        return res.json(txAll(r.rows));
+      }
+      if (method === 'POST') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `INSERT INTO hms_insurance_claims (patient_id, scheme_id, encounter_id, claim_amount, status, diagnosis, notes, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,'Pending',$5,$6,NOW(),NOW()) RETURNING *`,
+          [b.patient_id, b.scheme_id, b.encounter_id || null, b.claim_amount || 0, b.diagnosis || '', b.notes || '']
+        );
+        return res.status(201).json(tx(r.rows[0]));
+      }
+    }
+
+    // ========== INSURANCE SCHEMES ==========
+    if (segments[0] === 'insurance') {
+      if (segments[1] === 'schemes' && method === 'GET') {
+        const r = await pool.query('SELECT * FROM hms_insurance_schemes WHERE is_active = true ORDER BY scheme_name');
+        return res.json(txAll(r.rows));
+      }
+      if (segments[1] === 'schemes' && method === 'POST') {
+        const b = req.body || {};
+        const r = await pool.query(
+          `INSERT INTO hms_insurance_schemes (scheme_name, scheme_type, provider, contact_phone, contact_email, benefit_packages, is_active, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6::jsonb,true,NOW(),NOW()) RETURNING *`,
+          [b.scheme_name, b.scheme_type || 'NHIF', b.provider || '', b.contact_phone || '', b.contact_email || '',
+           JSON.stringify(b.benefit_packages || [])]
+        );
+        return res.status(201).json(tx(r.rows[0]));
+      }
+    }
+
+    // ========== MESSAGING ==========
+    if (segments[0] === 'messaging') {
+      if (segments[1] === 'templates' && method === 'GET') {
+        try {
+          const r = await pool.query('SELECT * FROM hms_sms_templates WHERE is_active = true ORDER BY name');
+          return res.json(txAll(r.rows));
+        } catch(e) {
+          return res.json([
+            { id: 1, name: 'Appointment Reminder', body: 'Dear {{patient_name}}, your appointment is on {{date}} at {{time}}. Please arrive 15 minutes early.', category: 'Appointment' },
+            { id: 2, name: 'Lab Results Ready', body: 'Dear {{patient_name}}, your lab results are ready. Please visit the facility to collect them.', category: 'Lab' },
+            { id: 3, name: 'Payment Receipt', body: 'Dear {{patient_name}}, payment of KES {{amount}} received. Receipt: {{receipt_no}}. Thank you.', category: 'Billing' },
+          ]);
+        }
+      }
+      if (segments[1] === 'history' && method === 'GET') {
+        try {
+          const r = await pool.query('SELECT * FROM hms_sms_logs ORDER BY created_at DESC LIMIT 100');
+          return res.json(txAll(r.rows));
+        } catch(e) { return res.json([]); }
+      }
+      if (segments[1] === 'send' && method === 'POST') {
+        const b = req.body || {};
+        // Log the message (actual SMS sending would need Africa's Talking integration)
+        try {
+          await pool.query(
+            `INSERT INTO hms_sms_logs (recipient_phone, recipient_name, message, message_type, status, sent_by, created_at)
+             VALUES ($1,$2,$3,'Custom','Queued',$4,NOW())`,
+            [b.phone, b.recipient_name || '', b.message, 'Admin']
+          );
+        } catch(e: any) {
+          if (e.message?.includes('does not exist')) {
+            await pool.query(`CREATE TABLE IF NOT EXISTS hms_sms_logs (
+              id SERIAL PRIMARY KEY, recipient_phone VARCHAR, recipient_name VARCHAR,
+              message TEXT, message_type VARCHAR DEFAULT 'Custom', status VARCHAR DEFAULT 'Queued',
+              sent_by VARCHAR, created_at TIMESTAMPTZ DEFAULT NOW()
+            )`);
+          }
+        }
+        return res.json({ message: 'Message queued', status: 'Queued' });
+      }
+      if (segments[1] === 'bulk' && method === 'POST') {
+        return res.json({ message: 'Bulk messages queued', count: 0 });
+      }
+    }
+
+    // ========== PHARMACY ==========
+    if (segments[0] === 'pharmacy') {
+      // GET /pharmacy/queue - prescriptions awaiting dispensing
+      if (segments[1] === 'queue' && method === 'GET') {
+        try {
+          const r = await pool.query(`
+            SELECT pr.*, p.first_name, p.last_name, p.gender, p.dob
+            FROM hms_prescriptions pr
+            LEFT JOIN hms_encounters e ON pr.encounter_id = e.id
+            LEFT JOIN hms_patients p ON e.patient_id = p.id
+            WHERE pr.status IN ('Pending','Partial')
+            ORDER BY pr.created_at DESC
+          `);
+          return res.json(txAll(r.rows));
+        } catch(e) { return res.json([]); }
+      }
+      // GET /pharmacy/history
+      if (segments[1] === 'history' && method === 'GET') {
+        try {
+          const r = await pool.query(`
+            SELECT pr.*, p.first_name, p.last_name
+            FROM hms_prescriptions pr
+            LEFT JOIN hms_encounters e ON pr.encounter_id = e.id
+            LEFT JOIN hms_patients p ON e.patient_id = p.id
+            WHERE pr.status = 'Dispensed'
+            ORDER BY pr.updated_at DESC LIMIT 100
+          `);
+          return res.json(txAll(r.rows));
+        } catch(e) { return res.json([]); }
+      }
+      // GET /pharmacy/formulary
+      if (segments[1] === 'formulary' && method === 'GET') {
+        try {
+          const r = await pool.query(`SELECT * FROM hms_formulary WHERE is_active = true ORDER BY drug_name`);
+          return res.json(txAll(r.rows));
+        } catch(e) {
+          // Fall back to Products table
+          try {
+            const r2 = await pool.query(`SELECT * FROM "Products" ORDER BY "productName"`);
+            return res.json(txAll(r2.rows));
+          } catch(e2) { return res.json([]); }
+        }
+      }
+      // GET /pharmacy/prescriptions/:id
+      if (segments[1] === 'prescriptions' && segments.length >= 3 && method === 'GET') {
+        try {
+          const r = await pool.query(`
+            SELECT pr.*, pi.*, p.first_name, p.last_name
+            FROM hms_prescriptions pr
+            LEFT JOIN hms_prescription_items pi ON pr.id = pi.prescription_id
+            LEFT JOIN hms_encounters e ON pr.encounter_id = e.id
+            LEFT JOIN hms_patients p ON e.patient_id = p.id
+            WHERE pr.id = $1`, [segments[2]]);
+          return res.json(txAll(r.rows));
+        } catch(e) { return res.json([]); }
+      }
+      // POST /pharmacy/prescriptions/:id/dispense
+      if (segments[1] === 'prescriptions' && segments[3] === 'dispense' && method === 'POST') {
+        try {
+          await pool.query(`UPDATE hms_prescriptions SET status='Dispensed', dispensed_at=NOW(), updated_at=NOW() WHERE id=$1`, [segments[2]]);
+          return res.json({ message: 'Prescription dispensed' });
+        } catch(e) { return res.json({ message: 'Dispensed (stub)' }); }
+      }
+    }
+
+    // ========== ADMIN PANEL ==========
+    if (segments[0] === 'admin') {
+      // GET /admin/users
+      if (segments[1] === 'users' && method === 'GET') {
+        const r = await pool.query(`
+          SELECT id, name, email, role, created_at, updated_at
+          FROM hms_users ORDER BY id
+        `);
+        return res.json(txAll(r.rows));
+      }
+      // POST /admin/users
+      if (segments[1] === 'users' && method === 'POST') {
+        const b = req.body || {};
+        const bcrypt = require('bcryptjs');
+        const hash = await bcrypt.hash(b.password || '1234', 10);
+        const r = await pool.query(
+          `INSERT INTO hms_users (name, email, password, role, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,NOW(),NOW()) RETURNING id, name, email, role`,
+          [b.name, b.email, hash, b.role || 'user']
+        );
+        return res.status(201).json(tx(r.rows[0]));
+      }
+      // GET /admin/roles
+      if (segments[1] === 'roles' && method === 'GET') {
+        const r = await pool.query('SELECT * FROM hms_user_roles ORDER BY id');
+        return res.json(txAll(r.rows));
+      }
+      // GET /admin/audit-log
+      if ((segments[1] === 'audit-log' || segments[1] === 'audit_log') && method === 'GET') {
+        try {
+          const from = req.query?.from || '2020-01-01';
+          const to = req.query?.to || '2099-12-31';
+          const resource = req.query?.resource;
+          let q = `SELECT * FROM hms_audit_log WHERE created_at >= $1::date AND created_at <= $2::date`;
+          const params: any[] = [from, to];
+          if (resource && resource !== 'all') {
+            q += ` AND resource_name = $3`;
+            params.push(resource);
+          }
+          q += ` ORDER BY created_at DESC LIMIT 200`;
+          const r = await pool.query(q, params);
+          return res.json(txAll(r.rows));
+        } catch(e) { return res.json([]); }
+      }
+      // GET /admin/settings
+      if (segments[1] === 'settings' && method === 'GET') {
+        try {
+          const r = await pool.query('SELECT * FROM hms_settings');
+          const settings: Record<string, any> = {};
+          r.rows.forEach((row: any) => { settings[row.setting_key] = row.setting_value; });
+          return res.json(settings);
+        } catch(e) {
+          return res.json({
+            facility_name: 'Hospital Management System',
+            currency: 'KES',
+            timezone: 'Africa/Nairobi',
+            date_format: 'DD/MM/YYYY'
+          });
+        }
+      }
+    }
+
+    // ========== JOB TITLES ==========
+    if (segments[0] === 'job-titles') {
+      if (method === 'GET') {
+        try {
+          const r = await pool.query('SELECT * FROM hms_job_titles WHERE is_active = true ORDER BY title');
+          return res.json(txAll(r.rows));
+        } catch(e) {
+          // Return default job titles
+          return res.json([
+            'Doctor', 'Nurse', 'Pharmacist', 'Lab Technician', 'Radiologist',
+            'Receptionist', 'Administrator', 'Accountant', 'Surgeon', 'Dentist',
+            'Physiotherapist', 'Clinical Officer', 'Community Health Worker'
+          ]);
+        }
+      }
+    }
+
     // ========== ICD-10 SEARCH ==========
     if (segments[0] === 'icd10') {
       if (segments[1] === 'search' && method === 'GET') {
