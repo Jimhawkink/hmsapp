@@ -5,12 +5,13 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 
+// Use HMS-specific env vars first, then generic, then hardcoded fallback
 const pool = new Pool({
-  host: process.env.DB_HOST || 'aws-1-eu-west-1.pooler.supabase.com',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'postgres',
-  user: process.env.DB_USER || 'postgres.enlqpifpxuecxxozyiak',
-  password: process.env.DB_PASSWORD || '@JIm47jhC_7%#',
+  host: process.env.HMS_DB_HOST || process.env.DB_HOST || 'aws-1-eu-west-1.pooler.supabase.com',
+  port: parseInt(process.env.HMS_DB_PORT || process.env.DB_PORT || '5432'),
+  database: process.env.HMS_DB_NAME || process.env.DB_NAME || 'postgres',
+  user: process.env.HMS_DB_USER || process.env.DB_USER || 'postgres.enlqpifpxuecxxozyiak',
+  password: process.env.HMS_DB_PASSWORD || process.env.DB_PASSWORD || '@JIm47jhC_7%#',
   ssl: { rejectUnauthorized: false },
   max: 3,
   connectionTimeoutMillis: 10000,
@@ -1895,6 +1896,14 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
         // Comprehensive ICD-10 code dataset
         const ICD10_CODES: { code: string; description: string }[] = [
+          // COVID-19
+          { code: 'U07.1', description: 'COVID-19, virus identified' },
+          { code: 'U07.2', description: 'COVID-19, virus not identified' },
+          { code: 'U09.9', description: 'Post-COVID-19 condition, unspecified' },
+          { code: 'U10.9', description: 'Multisystem inflammatory syndrome associated with COVID-19, unspecified' },
+          { code: 'J12.82', description: 'Pneumonia due to coronavirus disease 2019' },
+          { code: 'M35.81', description: 'Multisystem inflammatory syndrome (MIS) post COVID-19' },
+          { code: 'B97.29', description: 'Other coronavirus as the cause of diseases classified elsewhere' },
           // Infectious & Parasitic Diseases
           { code: 'A00', description: 'Cholera' },
           { code: 'A01.0', description: 'Typhoid fever' },

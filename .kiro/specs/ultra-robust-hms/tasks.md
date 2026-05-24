@@ -564,7 +564,7 @@ This plan converts the HMS design into incremental coding tasks, grouped into 16
     - Ensure all tests pass, ask the user if questions arise.
 
 
-- [x] 16. Property-Based Tests
+- [ ] 16. Property-Based Tests
   - [x] 16.1 Set up fast-check and test runner
     - Install `fast-check` as a dev dependency in `packages/backend`: `npm install --save-dev fast-check`
     - Create `packages/backend/src/tests/correctness.test.ts`
