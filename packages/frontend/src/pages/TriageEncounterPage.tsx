@@ -3,6 +3,14 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ComplaintsPage from './ComplaintsPage';
 import InvestigationPage from './InvestigationPage';
+import DiagnosisAndPlan from '../components/encounter/DiagnosisAndPlan';
+import PrescriptionForm from '../components/encounter/PrescriptionForm';
+import ReviewOfSystems from '../components/encounter/ReviewOfSystems';
+import MedicationHistory from '../components/encounter/MedicationHistory';
+import PhysicalExamination from '../components/encounter/PhysicalExamination';
+import EncounterAppointment from '../components/encounter/EncounterAppointment';
+import PatientBills from '../components/encounter/PatientBills';
+import StructuredVisitForms from '../components/encounter/StructuredVisitForms';
 
 // Use the shared frontend types
 import { LabRequest, LabResult, LabType } from "../types/investigation";
@@ -451,10 +459,10 @@ const TriageEncounterPage: React.FC = () => {
   const sidebarItems = [
     { id: 'triage', label: 'Triage', icon: '📋', component: 'Triage' },
     { id: 'complaints', label: 'Complaints & HPI', icon: '💬', component: 'Complaints' },
-    { id: 'structured', label: 'Structured visit forms', icon: '📝', hasDropdown: true },
-    { id: 'review', label: 'Review of systems', icon: '🔍' },
-    { id: 'medication', label: 'Medication history', icon: '💊' },
-    { id: 'examination', label: 'Examination', icon: '🩺' },
+    { id: 'structured', label: 'Structured visit forms', icon: '📝', component: 'StructuredVisitForms' },
+    { id: 'review', label: 'Review of systems', icon: '🔍', component: 'ReviewOfSystems' },
+    { id: 'medication', label: 'Medication history', icon: '💊', component: 'MedicationHistory' },
+    { id: 'examination', label: 'Examination', icon: '🩺', component: 'Examination' },
     {
       id: 'investigation',
       label: 'Investigation',
@@ -465,11 +473,11 @@ const TriageEncounterPage: React.FC = () => {
         { id: 'imaging', label: 'Imaging', component: 'Imaging' },
       ]
     },
-    { id: 'diagnosis', label: 'Diagnosis and Plan', icon: '📋' },
-    { id: 'prescription', label: 'Prescription', icon: '💊' },
-    { id: 'schedule', label: 'Appointment schedule', icon: '📅' },
-    { id: 'bills', label: 'Patient bills', icon: '💰', hasDropdown: true },
-    { id: 'close', label: 'Close encounter', icon: '✅' }
+    { id: 'diagnosis', label: 'Diagnosis and Plan', icon: '📋', component: 'DiagnosisAndPlan' },
+    { id: 'prescription', label: 'Prescription', icon: '💊', component: 'Prescription' },
+    { id: 'schedule', label: 'Appointment schedule', icon: '📅', component: 'AppointmentSchedule' },
+    { id: 'bills', label: 'Patient bills', icon: '💰', component: 'PatientBills' },
+    { id: 'close', label: 'Close encounter', icon: '✅', component: 'CloseEncounter' }
   ];
 
   // Dropdown state
@@ -646,6 +654,18 @@ const TriageEncounterPage: React.FC = () => {
       case 'Complaints':
         return <ComplaintsPage />;
 
+      case 'StructuredVisitForms':
+        return <StructuredVisitForms encounterId={encounterId || ''} patientId={selectedPatient?.id} />;
+
+      case 'ReviewOfSystems':
+        return <ReviewOfSystems encounterId={encounterId || ''} />;
+
+      case 'MedicationHistory':
+        return <MedicationHistory encounterId={encounterId || ''} patientId={selectedPatient?.id} />;
+
+      case 'Examination':
+        return <PhysicalExamination encounterId={encounterId || ''} />;
+
       case 'Laboratory':
       case 'Imaging':
         if (!encounterId) {
@@ -661,8 +681,49 @@ const TriageEncounterPage: React.FC = () => {
           />
         );
 
+      case 'DiagnosisAndPlan':
+        return <DiagnosisAndPlan encounterId={encounterId || ''} />;
+
+      case 'Prescription':
+        return <PrescriptionForm encounterId={encounterId || ''} patientId={selectedPatient?.id} />;
+
+      case 'AppointmentSchedule':
+        return <EncounterAppointment encounterId={encounterId || ''} patientId={selectedPatient?.id} />;
+
+      case 'PatientBills':
+        return <PatientBills encounterId={encounterId || ''} patientId={selectedPatient?.id} />;
+
+      case 'CloseEncounter':
+        return (
+          <div className="max-w-lg mx-auto py-12">
+            <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
+              <div className="text-5xl mb-4">✅</div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Close Encounter</h2>
+              <p className="text-gray-500 mb-6">Are you sure you want to close this encounter? This will mark the encounter as completed.</p>
+              <div className="flex gap-3 justify-center">
+                <button onClick={() => setActiveSection('Triage')} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button onClick={async () => {
+                  try {
+                    if (encounterId && !String(encounterId).includes('_new')) {
+                      await fetch(`/api/encounters/${encounterId}/close`, { method: 'POST' });
+                    }
+                    setSaveMessage({ type: 'success', message: 'Encounter closed successfully' });
+                    setTimeout(() => navigate('/dashboard/triage'), 1500);
+                  } catch(e) { setSaveMessage({ type: 'error', message: 'Failed to close encounter' }); }
+                }} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">Close Encounter</button>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
-        return null;
+        return (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-3">🚧</div>
+            <h3 className="text-lg font-semibold text-gray-600">Section: {activeSection}</h3>
+            <p className="text-gray-400 mt-1">This section is loading...</p>
+          </div>
+        );
     }
   };
 
