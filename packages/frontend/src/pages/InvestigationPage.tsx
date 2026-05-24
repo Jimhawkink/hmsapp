@@ -120,37 +120,93 @@ const InvestigationPage: React.FC<InvestigationPageProps> = ({
     return resp;
   };
 
-  const mockTests: InvestigationTest[] = [
-    {
-      id: 1,
-      name: "Haemogram",
-      department: "Haematology",
-      type: "laboratory",
-      parameters:
-        '[{"parameter": "Hemoglobin", "unit": "g/dl", "range": "12-16"}, {"parameter": "WBC Count", "unit": "/cmm", "range": "4000-11000"}, {"parameter": "Platelet Count", "unit": "/cmm", "range": "150000-450000"}]',
-    },
+  const defaultTests: InvestigationTest[] = [
+    // COVID-19
+    { id: 101, name: "COVID-19 PCR Test", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "SARS-CoV-2 RNA", "unit": "", "range": "Not Detected/Detected"}]' },
+    { id: 102, name: "COVID-19 Rapid Antigen Test", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "SARS-CoV-2 Antigen", "unit": "", "range": "Negative/Positive"}]' },
+    { id: 103, name: "COVID-19 Antibody Test (IgG/IgM)", department: "Serology", type: "laboratory", parameters: '[{"parameter": "SARS-CoV-2 IgG", "unit": "", "range": "Negative/Positive"}, {"parameter": "SARS-CoV-2 IgM", "unit": "", "range": "Negative/Positive"}]' },
+    // Haematology
+    { id: 1, name: "Haemogram (CBC)", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "Hemoglobin", "unit": "g/dl", "range": "12-16"}, {"parameter": "WBC Count", "unit": "/cmm", "range": "4000-11000"}, {"parameter": "Platelet Count", "unit": "/cmm", "range": "150000-450000"}, {"parameter": "RBC Count", "unit": "M/uL", "range": "4.0-5.5"}, {"parameter": "Hematocrit", "unit": "%", "range": "36-48"}, {"parameter": "MCV", "unit": "fL", "range": "80-100"}, {"parameter": "MCH", "unit": "pg", "range": "27-31"}, {"parameter": "MCHC", "unit": "g/dL", "range": "32-36"}]' },
     { id: 2, name: "ESR", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "ESR", "unit": "mm/hr", "range": "0-20"}]' },
-    { id: 3, name: "Factor V Leiden", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "Factor V Leiden", "unit": "", "range": "Normal/Abnormal"}]' },
-    {
-      id: 4,
-      name: "Lipid profile",
-      department: "Biochemistry",
-      type: "laboratory",
-      parameters:
-        '[{"parameter": "Total Cholesterol", "unit": "mg/dl", "range": "<200"}, {"parameter": "HDL", "unit": "mg/dl", "range": ">40"}, {"parameter": "LDL", "unit": "mg/dl", "range": "<100"}, {"parameter": "Triglycerides", "unit": "mg/dl", "range": "<150"}]',
-    },
-    { id: 5, name: "Malaria antigen", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Malaria Antigen", "unit": "", "range": "Negative/Positive"}]' },
-    { id: 6, name: "Syphilis VDRL", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "VDRL", "unit": "", "range": "Non-reactive/Reactive"}]' },
-    { id: 7, name: "HIV test", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "HIV", "unit": "", "range": "Negative/Positive"}]' },
-    { id: 8, name: "Urinalysis, dipstick", department: "Chemistry", type: "laboratory", parameters: '[{"parameter": "Protein", "unit": "", "range": "Negative"}, {"parameter": "Glucose", "unit": "", "range": "Negative"}, {"parameter": "Ketones", "unit": "", "range": "Negative"}]' },
-    { id: 9, name: "Syphilis RPR", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "RPR", "unit": "", "range": "Non-reactive/Reactive"}]' },
-    { id: 10, name: "Hpylori antibody", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "H. pylori IgG", "unit": "", "range": "Negative/Positive"}]' },
-    { id: 11, name: "Conjunctival test", department: "Ophthalmology", type: "laboratory", parameters: '[{"parameter": "Conjunctival swab", "unit": "", "range": "Normal/Abnormal"}]' },
-    { id: 12, name: "Chest Xray", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Chest X-ray findings", "unit": "", "range": "Normal/Abnormal"}]' },
+    { id: 3, name: "Blood Group & Rh", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "Blood Group", "unit": "", "range": "A/B/AB/O"}, {"parameter": "Rh Factor", "unit": "", "range": "Positive/Negative"}]' },
+    { id: 4, name: "Peripheral Blood Smear", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "RBC Morphology", "unit": "", "range": "Normal"}, {"parameter": "WBC Morphology", "unit": "", "range": "Normal"}, {"parameter": "Platelet Morphology", "unit": "", "range": "Normal"}]' },
+    { id: 5, name: "Coagulation Profile (PT/INR/APTT)", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "PT", "unit": "seconds", "range": "11-13.5"}, {"parameter": "INR", "unit": "", "range": "0.8-1.2"}, {"parameter": "APTT", "unit": "seconds", "range": "25-35"}]' },
+    { id: 6, name: "D-Dimer", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "D-Dimer", "unit": "ng/mL", "range": "<500"}]' },
+    { id: 7, name: "Reticulocyte Count", department: "Haematology", type: "laboratory", parameters: '[{"parameter": "Reticulocyte Count", "unit": "%", "range": "0.5-2.5"}]' },
+    // Biochemistry
+    { id: 10, name: "Lipid Profile", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Total Cholesterol", "unit": "mg/dl", "range": "<200"}, {"parameter": "HDL", "unit": "mg/dl", "range": ">40"}, {"parameter": "LDL", "unit": "mg/dl", "range": "<100"}, {"parameter": "Triglycerides", "unit": "mg/dl", "range": "<150"}]' },
+    { id: 11, name: "Renal Function Test (RFT/UEC)", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Urea", "unit": "mg/dL", "range": "7-20"}, {"parameter": "Creatinine", "unit": "mg/dL", "range": "0.6-1.2"}, {"parameter": "Sodium", "unit": "mmol/L", "range": "135-145"}, {"parameter": "Potassium", "unit": "mmol/L", "range": "3.5-5.0"}, {"parameter": "Chloride", "unit": "mmol/L", "range": "98-106"}]' },
+    { id: 12, name: "Liver Function Test (LFT)", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "ALT/SGPT", "unit": "U/L", "range": "7-56"}, {"parameter": "AST/SGOT", "unit": "U/L", "range": "10-40"}, {"parameter": "ALP", "unit": "U/L", "range": "44-147"}, {"parameter": "Total Bilirubin", "unit": "mg/dL", "range": "0.1-1.2"}, {"parameter": "Direct Bilirubin", "unit": "mg/dL", "range": "0-0.3"}, {"parameter": "Total Protein", "unit": "g/dL", "range": "6.0-8.3"}, {"parameter": "Albumin", "unit": "g/dL", "range": "3.4-5.4"}]' },
+    { id: 13, name: "Blood Sugar (Random)", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Random Blood Sugar", "unit": "mg/dL", "range": "70-140"}]' },
+    { id: 14, name: "Blood Sugar (Fasting)", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Fasting Blood Sugar", "unit": "mg/dL", "range": "70-100"}]' },
+    { id: 15, name: "HbA1c", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "HbA1c", "unit": "%", "range": "<5.7"}]' },
+    { id: 16, name: "Thyroid Function Test (TFT)", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "TSH", "unit": "mIU/L", "range": "0.4-4.0"}, {"parameter": "T3", "unit": "ng/dL", "range": "80-200"}, {"parameter": "T4", "unit": "ug/dL", "range": "4.5-12.5"}, {"parameter": "Free T4", "unit": "ng/dL", "range": "0.8-1.8"}]' },
+    { id: 17, name: "Uric Acid", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Uric Acid", "unit": "mg/dL", "range": "3.5-7.2"}]' },
+    { id: 18, name: "Calcium", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Serum Calcium", "unit": "mg/dL", "range": "8.5-10.5"}]' },
+    { id: 19, name: "Magnesium", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Serum Magnesium", "unit": "mg/dL", "range": "1.7-2.2"}]' },
+    { id: 20, name: "Amylase", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Amylase", "unit": "U/L", "range": "28-100"}]' },
+    { id: 21, name: "Lipase", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Lipase", "unit": "U/L", "range": "0-160"}]' },
+    { id: 22, name: "CRP (C-Reactive Protein)", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "CRP", "unit": "mg/L", "range": "<10"}]' },
+    { id: 23, name: "Troponin I", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "Troponin I", "unit": "ng/mL", "range": "<0.04"}]' },
+    { id: 24, name: "PSA (Prostate Specific Antigen)", department: "Biochemistry", type: "laboratory", parameters: '[{"parameter": "PSA", "unit": "ng/mL", "range": "0-4.0"}]' },
+    // Microbiology
+    { id: 30, name: "Malaria Antigen (mRDT)", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Malaria Antigen", "unit": "", "range": "Negative/Positive"}]' },
+    { id: 31, name: "Malaria Blood Smear (BS for MPS)", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Malaria Parasites", "unit": "", "range": "Not seen/Seen"}, {"parameter": "Species", "unit": "", "range": "P.falciparum/P.vivax/P.malariae/P.ovale"}, {"parameter": "Parasite Density", "unit": "/uL", "range": ""}]' },
+    { id: 32, name: "HIV Test", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "HIV 1/2 Antibody", "unit": "", "range": "Negative/Positive"}]' },
+    { id: 33, name: "Hepatitis B Surface Antigen (HBsAg)", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "HBsAg", "unit": "", "range": "Non-reactive/Reactive"}]' },
+    { id: 34, name: "Hepatitis C Antibody", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "HCV Ab", "unit": "", "range": "Non-reactive/Reactive"}]' },
+    { id: 35, name: "Syphilis VDRL/RPR", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "VDRL/RPR", "unit": "", "range": "Non-reactive/Reactive"}]' },
+    { id: 36, name: "Syphilis TPHA", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "TPHA", "unit": "", "range": "Non-reactive/Reactive"}]' },
+    { id: 37, name: "Widal Test", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Salmonella Typhi O", "unit": "", "range": "<1:80"}, {"parameter": "Salmonella Typhi H", "unit": "", "range": "<1:80"}]' },
+    { id: 38, name: "Blood Culture & Sensitivity", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Organism", "unit": "", "range": "No growth"}, {"parameter": "Sensitivity", "unit": "", "range": ""}]' },
+    { id: 39, name: "Urine Culture & Sensitivity", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Organism", "unit": "", "range": "No growth"}, {"parameter": "Colony Count", "unit": "CFU/mL", "range": "<10000"}, {"parameter": "Sensitivity", "unit": "", "range": ""}]' },
+    { id: 40, name: "Stool Culture", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Organism", "unit": "", "range": "Normal flora"}, {"parameter": "Sensitivity", "unit": "", "range": ""}]' },
+    { id: 41, name: "H. pylori Antibody", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "H. pylori IgG", "unit": "", "range": "Negative/Positive"}]' },
+    { id: 42, name: "Brucella Test", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Brucella Antibody", "unit": "", "range": "Negative/Positive"}]' },
+    { id: 43, name: "TB Gene Xpert", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "MTB", "unit": "", "range": "Not Detected/Detected"}, {"parameter": "RIF Resistance", "unit": "", "range": "Not Detected/Detected"}]' },
+    { id: 44, name: "Dengue NS1 Antigen", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Dengue NS1", "unit": "", "range": "Negative/Positive"}]' },
+    // Urinalysis
+    { id: 50, name: "Urinalysis (Dipstick)", department: "Chemistry", type: "laboratory", parameters: '[{"parameter": "Protein", "unit": "", "range": "Negative"}, {"parameter": "Glucose", "unit": "", "range": "Negative"}, {"parameter": "Ketones", "unit": "", "range": "Negative"}, {"parameter": "Blood", "unit": "", "range": "Negative"}, {"parameter": "pH", "unit": "", "range": "4.5-8.0"}, {"parameter": "Specific Gravity", "unit": "", "range": "1.005-1.030"}]' },
+    { id: 51, name: "Urine Microscopy", department: "Chemistry", type: "laboratory", parameters: '[{"parameter": "RBCs", "unit": "/HPF", "range": "0-2"}, {"parameter": "WBCs", "unit": "/HPF", "range": "0-5"}, {"parameter": "Epithelial Cells", "unit": "/HPF", "range": "Few"}, {"parameter": "Casts", "unit": "", "range": "None"}, {"parameter": "Crystals", "unit": "", "range": "None"}]' },
+    { id: 52, name: "Pregnancy Test (UPT/bHCG)", department: "Chemistry", type: "laboratory", parameters: '[{"parameter": "Pregnancy Test", "unit": "", "range": "Negative/Positive"}]' },
+    // Stool
+    { id: 55, name: "Stool Microscopy (Ova & Cysts)", department: "Microbiology", type: "laboratory", parameters: '[{"parameter": "Ova", "unit": "", "range": "Not seen"}, {"parameter": "Cysts", "unit": "", "range": "Not seen"}, {"parameter": "Occult Blood", "unit": "", "range": "Negative"}]' },
+    // Serology / Immunology
+    { id: 60, name: "Rheumatoid Factor (RF)", department: "Serology", type: "laboratory", parameters: '[{"parameter": "RF", "unit": "IU/mL", "range": "<14"}]' },
+    { id: 61, name: "ASO Titre", department: "Serology", type: "laboratory", parameters: '[{"parameter": "ASO", "unit": "IU/mL", "range": "<200"}]' },
+    { id: 62, name: "ANA (Antinuclear Antibody)", department: "Serology", type: "laboratory", parameters: '[{"parameter": "ANA", "unit": "", "range": "Negative/Positive"}, {"parameter": "Titre", "unit": "", "range": ""}]' },
+    // Cardiac
+    { id: 65, name: "ECG/EKG", department: "Cardiology", type: "laboratory", parameters: '[{"parameter": "Heart Rate", "unit": "bpm", "range": "60-100"}, {"parameter": "Rhythm", "unit": "", "range": "Normal Sinus"}, {"parameter": "Interpretation", "unit": "", "range": "Normal/Abnormal"}]' },
+    // Imaging
+    { id: 70, name: "Chest X-ray", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Findings", "unit": "", "range": "Normal/Abnormal"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
+    { id: 71, name: "Abdominal Ultrasound", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Liver", "unit": "", "range": "Normal"}, {"parameter": "Spleen", "unit": "", "range": "Normal"}, {"parameter": "Kidneys", "unit": "", "range": "Normal"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
+    { id: 72, name: "Pelvic Ultrasound", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Uterus", "unit": "", "range": "Normal"}, {"parameter": "Ovaries", "unit": "", "range": "Normal"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
+    { id: 73, name: "Obstetric Ultrasound", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Gestational Age", "unit": "weeks", "range": ""}, {"parameter": "Fetal Heart Rate", "unit": "bpm", "range": "120-160"}, {"parameter": "Presentation", "unit": "", "range": ""}, {"parameter": "Placenta", "unit": "", "range": ""}, {"parameter": "AFI", "unit": "cm", "range": "5-25"}, {"parameter": "EFW", "unit": "g", "range": ""}]' },
+    { id: 74, name: "CT Scan Head", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Findings", "unit": "", "range": "Normal/Abnormal"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
+    { id: 75, name: "MRI Brain", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Findings", "unit": "", "range": "Normal/Abnormal"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
+    { id: 76, name: "X-ray Limb", department: "Radiology", type: "imaging", parameters: '[{"parameter": "Findings", "unit": "", "range": "Normal/Abnormal"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
+    { id: 77, name: "Mammography", department: "Radiology", type: "imaging", parameters: '[{"parameter": "BI-RADS Category", "unit": "", "range": "1-6"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
+    { id: 78, name: "Echocardiography", department: "Cardiology", type: "imaging", parameters: '[{"parameter": "EF", "unit": "%", "range": "55-70"}, {"parameter": "Valves", "unit": "", "range": "Normal"}, {"parameter": "Wall Motion", "unit": "", "range": "Normal"}, {"parameter": "Impression", "unit": "", "range": ""}]' },
   ];
 
+  // Try to load tests from API, fallback to defaults
   useEffect(() => {
-    setTests(mockTests);
+    const loadTests = async () => {
+      try {
+        const resp = await apiFetch("/api/investigation-tests");
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setTests(data);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load tests from API, using defaults");
+      }
+      setTests(defaultTests);
+    };
+    loadTests();
   }, []);
 
   const filteredTests = tests.filter(
